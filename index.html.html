@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title> AI 專利摘要與 Word 匯出系統</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PDF.js for parsing PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- docx.js & FileSaver for Word Export -->
+  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="max-w-6xl mx-auto p-6">
+    <!-- Header -->
+    <header class="mb-8 border-b border-slate-200 pb-4">
+      <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+        <svg class="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+        專利摘要生成與 Word 導出系統
+      </h1>
+      <p class="text-slate-500 text-sm mt-1">上傳專利 PDF 與參考格式檔，自動提取重點並匯出為 .docx 文件</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Left Panel: Control & Uploads -->
+      <div class="lg:col-span-5 space-y-6">
+        
+        <!-- Upload 1: Patent PDF -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <label class="block text-sm font-semibold text-slate-700 mb-2">1. 上傳專利說明書 (PDF)</label>
+          <input type="file" id="pdfInput" accept=".pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-lg p-1"/>
+          <div id="pdfStatus" class="mt-2 text-xs text-slate-500"></div>
+        </div>
+
+        <!-- Upload 2: Reference Format -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <label class="block text-sm font-semibold text-slate-700 mb-2">2. 上傳參考摘要格式檔 (.txt / .docx / .pdf)</label>
+          <input type="file" id="refInput" accept=".txt,.docx,.pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-lg p-1"/>
+          <div id="refStatus" class="mt-2 text-xs text-slate-500"></div>
+        </div>
+
+        <!-- Built-in System Prompt Configuration -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <label class="block text-sm font-semibold text-slate-700 mb-2">3. 內建分析 Prompt 邏輯設定</label>
+          <textarea id="promptConfig" rows="5" class="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-700 leading-relaxed">請擔任專利分析專家。請擷取輸入的「專利說明書」內容，嚴格依據「參考摘要格式」之結構與欄位，進行繁體中文摘要。
+必須包含：
+1. 發明名稱與專利號
+2. 技術領域與背景問題
+3. 核心技術特徵與解決方案
+4. 主要請求項 (Claims) 重點總結</textarea>
+        </div>
+
+        <!-- Action Button -->
+        <button id="generateBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl shadow transition duration-200 flex items-center justify-center gap-2">
+          <span>開始執行摘要分析</span>
+        </button>
+      </div>
+
+      <!-- Right Panel: Result & Export -->
+      <div class="lg:col-span-7 flex flex-col h-full">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+            <h2 class="text-lg font-semibold text-slate-800">專利摘要預覽與編輯</h2>
+            <button id="exportWordBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 px-4 rounded-lg shadow transition duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              匯出 Word (.docx)
+            </button>
+          </div>
+
+          <!-- Result Content Area -->
+          <div id="outputContainer" class="flex-1 min-h-[400px]">
+            <textarea id="summaryResult" class="w-full h-full min-h-[400px] p-4 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none leading-relaxed text-slate-800" placeholder="摘要結果將顯示於此，您可在此手動調整或微調文字..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    let patentText = '';
+    let refFormatText = '';
+
+    // Handle PDF Reading
+    document.getElementById('pdfInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const statusEl = document.getElementById('pdfStatus');
+      statusEl.textContent = '讀取 PDF 中...';
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ');
+          fullText += pageText + '\n';
+        }
+        
+        patentText = fullText;
+        statusEl.textContent = `成功解析 ${pdf.numPages} 頁 PDF 內容`;
+        statusEl.className = 'mt-2 text-xs text-emerald-600 font-medium';
+      } catch (err) {
+        statusEl.textContent = 'PDF 讀取失敗，請確認檔案格式';
+        statusEl.className = 'mt-2 text-xs text-rose-600';
+      }
+    });
+
+    // Handle Reference Format File Reading
+    document.getElementById('refInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const statusEl = document.getElementById('refStatus');
+      statusEl.textContent = '讀取參考檔中...';
+
+      if (file.name.endsWith('.txt')) {
+        const text = await file.text();
+        refFormatText = text;
+        statusEl.textContent = '參考格式檔讀取完成';
+        statusEl.className = 'mt-2 text-xs text-emerald-600 font-medium';
+      } else {
+        statusEl.textContent = `已選取參考檔: ${file.name}`;
+        statusEl.className = 'mt-2 text-xs text-slate-600';
+      }
+    });
+
+    // Generate Summary Simulation Logic
+    document.getElementById('generateBtn').addEventListener('click', () => {
+      const resultArea = document.getElementById('summaryResult');
+      const prompt = document.getElementById('promptConfig').value;
+
+      if (!patentText) {
+        alert('請先上傳專利說明書 PDF 檔案！');
+        return;
+      }
+
+      resultArea.value = '【處理中】正在依據 Prompt 與參考格式進行專利摘要，請稍候...\n';
+
+      // Simulate structured patent summary output
+      setTimeout(() => {
+        const mockSummary = `【專利摘要報告】
+
+一、 發明名稱與基本資訊
+• 專利名稱：半導體封裝結構及其製造方法
+• 分析日期：${new Date().toLocaleDateString('zh-TW')}
+
+二、 技術領域與背景問題
+• 技術領域：本發明屬於半導體封裝與高密度整合技術領域。
+• 解決之背景問題：習知技術在晶片堆疊過程中易產生熱應力集中與訊號延遲問題，影響整體組裝良率與運算效能。
+
+三、 核心技術特徵與解決方案
+1. 採用全新冷板散熱微結構，提升 35% 散熱效率。
+2. 透過重佈線層（RDL）優化傳輸路徑，有效降低高頻訊號衰減。
+
+四、 主要請求項 (Claims) 重點總結
+• 請求項 1：一種半導體封裝結構，包含基板、配置於基板上之第一晶片，以及接合於其上之導熱散熱層。
+• 請求項 2：如請求項 1 所述之結構，其中該導熱散熱層具有多個微流道設計。`;
+
+        resultArea.value = mockSummary;
+      }, 1000);
+    });
+
+    // Export to Word (.docx) Logic
+    document.getElementById('exportWordBtn').addEventListener('click', () => {
+      const text = document.getElementById('summaryResult').value;
+      if (!text.trim()) {
+        alert('無可匯出之摘要內容！');
+        return;
+      }
+
+      const { Document, Packer, Paragraph, TextRun } = window.docx;
+
+      // Split summary into paragraphs for Word formatting
+      const paragraphs = text.split('\n').map(line => {
+        const isHeader = line.startsWith('【') || line.match(/^[一二三四五]、/);
+        return new Paragraph({
+          children: [
+            new TextRun({
+              text: line,
+              bold: isHeader,
+              size: isHeader ? 28 : 24, // 14pt for headers, 12pt for body
+              font: "Microsoft JhengHei"
+            })
+          ],
+          spacing: { after: 200 }
+        });
+      });
+
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: paragraphs
+        }]
+      });
+
+      Packer.toBlob(doc).then(blob => {
+        saveAs(blob, "專利摘要報告.docx");
+      });
+    });
+  </script>
+</body>
+</html>
