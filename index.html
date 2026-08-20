@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> AI 專利摘要與 Word 匯出系統</title>
+  <title>AI 專利摘要與 Word 匯出系統 (Gemini API 強化版)</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- PDF.js for parsing PDF -->
@@ -15,18 +15,33 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen">
   <div class="max-w-6xl mx-auto p-6">
     <!-- Header -->
-    <header class="mb-8 border-b border-slate-200 pb-4">
-      <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
-        <svg class="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-        專利摘要生成與 Word 導出系統
-      </h1>
-      <p class="text-slate-500 text-sm mt-1">上傳專利 PDF 與參考格式檔，自動提取重點並匯出為 .docx 文件</p>
+    <header class="mb-8 border-b border-slate-200 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <svg class="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          專利摘要生成與 Word 導出系統
+        </h1>
+        <p class="text-slate-500 text-sm mt-1">直連 Gemini 1.5 Pro 大模型，解析專利 PDF 與參考格式並匯出 .docx</p>
+      </div>
     </header>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <!-- Left Panel: Control & Uploads -->
-      <div class="lg:col-span-5 space-y-6">
+      <div class="lg:col-span-5 space-y-5">
         
+        <!-- Gemini API Key Input -->
+        <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl border border-indigo-100 shadow-sm">
+          <label class="block text-sm font-semibold text-indigo-900 mb-1 flex items-center gap-1">
+            <svg class="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H4v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"></path></svg>
+            Gemini API Key 設定
+          </label>
+          <input type="password" id="apiKeyInput" placeholder="請貼入 AI Studio 取得的 API Key" class="w-full text-sm p-2.5 bg-white border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"/>
+          <div class="flex justify-between items-center mt-2 text-xs text-indigo-600">
+            <span>未儲存於後端，僅暫存於本地瀏覽器</span>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="underline hover:text-indigo-800">免費取得 API Key</a>
+          </div>
+        </div>
+
         <!-- Upload 1: Patent PDF -->
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <label class="block text-sm font-semibold text-slate-700 mb-2">1. 上傳專利說明書 (PDF)</label>
@@ -36,25 +51,33 @@
 
         <!-- Upload 2: Reference Format -->
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <label class="block text-sm font-semibold text-slate-700 mb-2">2. 上傳參考摘要格式檔 (.txt / .docx / .pdf)</label>
-          <input type="file" id="refInput" accept=".txt,.docx,.pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-lg p-1"/>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">2. 上傳參考摘要格式檔 (.txt / .pdf)</label>
+          <input type="file" id="refInput" accept=".txt,.pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-lg p-1"/>
           <div id="refStatus" class="mt-2 text-xs text-slate-500"></div>
         </div>
 
         <!-- Built-in System Prompt Configuration -->
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <label class="block text-sm font-semibold text-slate-700 mb-2">3. 內建分析 Prompt 邏輯設定</label>
-          <textarea id="promptConfig" rows="5" class="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-700 leading-relaxed">請擔任專利分析專家。請擷取輸入的「專利說明書」內容，嚴格依據「參考摘要格式」之結構與欄位，進行繁體中文摘要。
-必須包含：
-1. 發明名稱與專利號
-2. 技術領域與背景問題
-3. 核心技術特徵與解決方案
-4. 主要請求項 (Claims) 重點總結</textarea>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">3. 分析 Prompt 與 模型設定</label>
+          <div class="mb-2">
+            <select id="modelSelect" class="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none mb-2">
+              <option value="gemini-1.5-pro">Model: gemini-1.5-pro (推薦，深度分析能力強)</option>
+              <option value="gemini-1.5-flash">Model: gemini-1.5-flash (生成速度快)</option>
+            </select>
+          </div>
+          <textarea id="promptConfig" rows="4" class="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-700 leading-relaxed">請擔任資深專利分析專家。請閱讀輸入的「專利說明書」全文，並參照「參考摘要格式」的架構欄位與風格，進行繁體中文的深度摘要與解析。
+必須涵蓋：
+1. 專利基本資訊（名稱、申請號/專利號、IPC分類）
+2. 技術領域與背景問題（解決何種習知技術痛點）
+3. 核心技術特徵與主要實施例（詳細說明解決方案與其技術手段）
+4. 主要請求項 (Claims) 拆解與關鍵限縮特徵
+5. 預期技術功效與優勢</textarea>
         </div>
 
         <!-- Action Button -->
         <button id="generateBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl shadow transition duration-200 flex items-center justify-center gap-2">
-          <span>開始執行摘要分析</span>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          <span>呼叫 Gemini 開始深度摘要</span>
         </button>
       </div>
 
@@ -62,7 +85,10 @@
       <div class="lg:col-span-7 flex flex-col h-full">
         <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col">
           <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-            <h2 class="text-lg font-semibold text-slate-800">專利摘要預覽與編輯</h2>
+            <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+              專利摘要結果
+              <span id="loadingSpinner" class="hidden animate-spin h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full"></span>
+            </h2>
             <button id="exportWordBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 px-4 rounded-lg shadow transition duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
               匯出 Word (.docx)
@@ -70,8 +96,8 @@
           </div>
 
           <!-- Result Content Area -->
-          <div id="outputContainer" class="flex-1 min-h-[400px]">
-            <textarea id="summaryResult" class="w-full h-full min-h-[400px] p-4 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none leading-relaxed text-slate-800" placeholder="摘要結果將顯示於此，您可在此手動調整或微調文字..."></textarea>
+          <div id="outputContainer" class="flex-1 min-h-[450px]">
+            <textarea id="summaryResult" class="w-full h-full min-h-[450px] p-4 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none leading-relaxed text-slate-800" placeholder="點擊「呼叫 Gemini 開始深度摘要」後，AI 生成的詳細專利報告將顯示於此..."></textarea>
           </div>
         </div>
       </div>
@@ -85,88 +111,139 @@
     let patentText = '';
     let refFormatText = '';
 
-    // Handle PDF Reading
+    // Load saved API Key on startup
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedKey = localStorage.getItem('gemini_api_key');
+      if (savedKey) {
+        document.getElementById('apiKeyInput').value = savedKey;
+      }
+    });
+
+    // Save API Key when modified
+    document.getElementById('apiKeyInput').addEventListener('input', (e) => {
+      localStorage.setItem('gemini_api_key', e.target.value.trim());
+    });
+
+    // Helper: Extract text from PDF File
+    async function extractTextFromPDF(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        fullText += textContent.items.map(item => item.str).join(' ') + '\n';
+      }
+      return { text: fullText, numPages: pdf.numPages };
+    }
+
+    // Handle Patent PDF Upload
     document.getElementById('pdfInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      
       const statusEl = document.getElementById('pdfStatus');
-      statusEl.textContent = '讀取 PDF 中...';
+      statusEl.textContent = '解析 PDF 中...';
 
       try {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = '';
-        
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items.map(item => item.str).join(' ');
-          fullText += pageText + '\n';
-        }
-        
-        patentText = fullText;
-        statusEl.textContent = `成功解析 ${pdf.numPages} 頁 PDF 內容`;
+        const result = await extractTextFromPDF(file);
+        patentText = result.text;
+        statusEl.textContent = `成功解析 ${result.numPages} 頁 PDF 內文 (${patentText.length} 字)`;
         statusEl.className = 'mt-2 text-xs text-emerald-600 font-medium';
       } catch (err) {
-        statusEl.textContent = 'PDF 讀取失敗，請確認檔案格式';
+        statusEl.textContent = 'PDF 解析失敗：' + err.message;
         statusEl.className = 'mt-2 text-xs text-rose-600';
       }
     });
 
-    // Handle Reference Format File Reading
+    // Handle Reference File Upload
     document.getElementById('refInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       const statusEl = document.getElementById('refStatus');
-      statusEl.textContent = '讀取參考檔中...';
+      statusEl.textContent = '解析參考檔中...';
 
-      if (file.name.endsWith('.txt')) {
-        const text = await file.text();
-        refFormatText = text;
-        statusEl.textContent = '參考格式檔讀取完成';
+      try {
+        if (file.name.endsWith('.pdf')) {
+          const result = await extractTextFromPDF(file);
+          refFormatText = result.text;
+        } else {
+          refFormatText = await file.text();
+        }
+        statusEl.textContent = `參考格式檔載入完成 (${refFormatText.length} 字)`;
         statusEl.className = 'mt-2 text-xs text-emerald-600 font-medium';
-      } else {
-        statusEl.textContent = `已選取參考檔: ${file.name}`;
-        statusEl.className = 'mt-2 text-xs text-slate-600';
+      } catch (err) {
+        statusEl.textContent = '參考檔讀取失敗';
+        statusEl.className = 'mt-2 text-xs text-rose-600';
       }
     });
 
-    // Generate Summary Simulation Logic
-    document.getElementById('generateBtn').addEventListener('click', () => {
+    // Call Gemini API Logic
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
       const resultArea = document.getElementById('summaryResult');
-      const prompt = document.getElementById('promptConfig').value;
+      const promptInstruction = document.getElementById('promptConfig').value;
+      const selectedModel = document.getElementById('modelSelect').value;
+      const spinner = document.getElementById('loadingSpinner');
 
+      if (!apiKey) {
+        alert('請先輸入 Gemini API Key！');
+        return;
+      }
       if (!patentText) {
         alert('請先上傳專利說明書 PDF 檔案！');
         return;
       }
 
-      resultArea.value = '【處理中】正在依據 Prompt 與參考格式進行專利摘要，請稍候...\n';
+      spinner.classList.remove('hidden');
+      resultArea.value = '【Gemini 分析中】專利全文與參考格式已送往 Gemini API，正在進行深度邏輯摘要，請稍候...\n';
 
-      // Simulate structured patent summary output
-      setTimeout(() => {
-        const mockSummary = `【專利摘要報告】
+      // Assemble System & User Message
+      const fullPrompt = `${promptInstruction}
 
-一、 發明名稱與基本資訊
-• 專利名稱：半導體封裝結構及其製造方法
-• 分析日期：${new Date().toLocaleDateString('zh-TW')}
+---
+【參考摘要格式檔】
+${refFormatText ? refFormatText : '無指定格式，請依據預設專業格式摘要。'}
 
-二、 技術領域與背景問題
-• 技術領域：本發明屬於半導體封裝與高密度整合技術領域。
-• 解決之背景問題：習知技術在晶片堆疊過程中易產生熱應力集中與訊號延遲問題，影響整體組裝良率與運算效能。
+---
+【專利說明書全文內容】
+${patentText}
+`;
 
-三、 核心技術特徵與解決方案
-1. 採用全新冷板散熱微結構，提升 35% 散熱效率。
-2. 透過重佈線層（RDL）優化傳輸路徑，有效降低高頻訊號衰減。
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: fullPrompt }]
+            }],
+            generationConfig: {
+              temperature: 0.2, // Low temperature for high precision
+              maxOutputTokens: 8192
+            }
+          })
+        });
 
-四、 主要請求項 (Claims) 重點總結
-• 請求項 1：一種半導體封裝結構，包含基板、配置於基板上之第一晶片，以及接合於其上之導熱散熱層。
-• 請求項 2：如請求項 1 所述之結構，其中該導熱散熱層具有多個微流道設計。`;
+        const data = await response.json();
 
-        resultArea.value = mockSummary;
-      }, 1000);
+        if (data.error) {
+          throw new Error(data.error.message || 'API 呼叫失敗');
+        }
+
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (generatedText) {
+          resultArea.value = generatedText;
+        } else {
+          resultArea.value = '無回應結果，請檢查輸入內容或 API 設定。';
+        }
+
+      } catch (err) {
+        resultArea.value = `[錯誤發生] 呼叫 Gemini API 時出現異常：\n${err.message}`;
+      } finally {
+        spinner.classList.add('hidden');
+      }
     });
 
     // Export to Word (.docx) Logic
@@ -179,19 +256,22 @@
 
       const { Document, Packer, Paragraph, TextRun } = window.docx;
 
-      // Split summary into paragraphs for Word formatting
-      const paragraphs = text.split('\n').map(line => {
-        const isHeader = line.startsWith('【') || line.match(/^[一二三四五]、/);
+      // Convert Markdown headers and text into formatted Word document
+      const lines = text.split('\n');
+      const paragraphs = lines.map(line => {
+        let isHeading = line.startsWith('#') || line.startsWith('【') || line.match(/^[一二三四五六七八九十]+[、.]/);
+        let cleanText = line.replace(/^#+\s*/, ''); // Strip markdown #
+
         return new Paragraph({
           children: [
             new TextRun({
-              text: line,
-              bold: isHeader,
-              size: isHeader ? 28 : 24, // 14pt for headers, 12pt for body
+              text: cleanText,
+              bold: isHeading || line.includes('**'),
+              size: isHeading ? 26 : 24, // 13pt for headers, 12pt for body text
               font: "Microsoft JhengHei"
             })
           ],
-          spacing: { after: 200 }
+          spacing: { after: 180 }
         });
       });
 
@@ -203,7 +283,7 @@
       });
 
       Packer.toBlob(doc).then(blob => {
-        saveAs(blob, "專利摘要報告.docx");
+        saveAs(blob, "專利摘要報告_Gemini.docx");
       });
     });
   </script>
